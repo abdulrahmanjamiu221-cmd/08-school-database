@@ -1,6 +1,7 @@
 -- Secondary school database schema for MySQL 8.0.16+ / MariaDB 10.2.1+
 -- CHECK constraints are enforced in these versions and later.
 
+DROP TABLE IF EXISTS class_transfers;
 DROP TABLE IF EXISTS attendance;
 DROP TABLE IF EXISTS results;
 DROP TABLE IF EXISTS class_subjects;
@@ -88,6 +89,38 @@ CREATE TABLE enrollments (
     -- RESTRICT prevents removing a class used by enrollment history.
     CONSTRAINT fk_enrollments_class
         FOREIGN KEY (class_id) REFERENCES classes (class_id)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE class_transfers (
+    transfer_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    student_id BIGINT UNSIGNED NOT NULL,
+    term_id BIGINT UNSIGNED NOT NULL,
+    from_class_id BIGINT UNSIGNED NOT NULL,
+    to_class_id BIGINT UNSIGNED NOT NULL,
+    transferred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (transfer_id),
+    KEY ix_class_transfers_student_term (student_id, term_id),
+    KEY ix_class_transfers_from_class (from_class_id),
+    KEY ix_class_transfers_to_class (to_class_id),
+    CONSTRAINT chk_class_transfers_different_classes
+        CHECK (from_class_id <> to_class_id),
+    -- RESTRICT keeps the audit history intact; CASCADE on update preserves the
+    -- historical reference if a student's internal key is changed.
+    CONSTRAINT fk_class_transfers_student
+        FOREIGN KEY (student_id) REFERENCES students (student_id)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    -- RESTRICT protects audit history from term deletion.
+    CONSTRAINT fk_class_transfers_term
+        FOREIGN KEY (term_id) REFERENCES terms (term_id)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    -- RESTRICT protects the recorded source class in the audit history.
+    CONSTRAINT fk_class_transfers_from_class
+        FOREIGN KEY (from_class_id) REFERENCES classes (class_id)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    -- RESTRICT protects the recorded destination class in the audit history.
+    CONSTRAINT fk_class_transfers_to_class
+        FOREIGN KEY (to_class_id) REFERENCES classes (class_id)
         ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
